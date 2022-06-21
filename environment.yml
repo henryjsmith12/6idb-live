@@ -1,0 +1,12 @@
+name: 6idb-live
+dependencies:
+  - python=3.7
+  - numpy=1.20.*
+  - pip
+  - pip:
+    - matplotlib
+    - PyQt5==5.15.4
+    - pyqtgraph==0.12.1
+    - pyepics==3.5.1
+    - tifffile
+    - xrayutilities
