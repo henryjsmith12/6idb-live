@@ -1,13 +1,15 @@
-import pyqtgraph as pg
 from pyqtgraph import QtGui
 from pyqtgraph.dockarea import Dock, DockArea
 
-from source.parameters import ParameterWidget
+from source.parameter_widget import ParameterWidget
 
 # ==================================================================================
 
 class MainWindow(QtGui.QWidget):
-    
+    """
+    Window holding DockArea for GUI.
+    """    
+
     def __init__ (self, parent=None):
         super(MainWindow, self).__init__(parent)
 
@@ -35,7 +37,7 @@ class MainWindow(QtGui.QWidget):
         self.dock_area.addDock(self.parameter_dock)
         self.dock_area.addDock(self.spotlight_dock, "left", self.parameter_dock)
 
-        # LAYOUT -------------------------------------------------------------------
+        # Layout
         self.layout = QtGui.QVBoxLayout()
         self.layout.addWidget(self.dock_area)
         self.setLayout(self.layout)
