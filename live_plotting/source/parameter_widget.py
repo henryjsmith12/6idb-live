@@ -1,7 +1,7 @@
 import epics
-import pyqtgraph as pg
 from pyqtgraph import QtGui
 from pyqtgraph.parametertree import ParameterTree
+from pyqtgraph.parametertree.parameterTypes import SimpleParameter
 
 # ==================================================================================
 
@@ -112,7 +112,7 @@ class AddParameterDialog(QtGui.QDialog):
 
 # ==================================================================================
 
-class Parameter(pg.parametertree.parameterTypes.SimpleParameter):
+class Parameter(SimpleParameter):
     """
     Parameter object for primitive types. Takes information from given PV.
     """
@@ -136,7 +136,7 @@ class Parameter(pg.parametertree.parameterTypes.SimpleParameter):
         """
         Updates value as seen in the GUI
         """
-        
+
         self.setValue(value)
 
 # ==================================================================================
