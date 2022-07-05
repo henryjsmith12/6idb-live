@@ -40,7 +40,10 @@ class ParameterWidget(QtGui.QWidget):
         if dialog != QtGui.QDialogButtonBox.Ok:
 
             # Creates parameter from PV name provided
-            parameter = Parameter(pvname=dialog.pvname)
+            parameter = Parameter(
+                display_name=dialog.display_name, 
+                pvname=dialog.pvname
+            )
 
             # Adds parameter to widget
             self.parameter_tree.addParameters(parameter)
@@ -60,12 +63,16 @@ class AddParameterDialog(QtGui.QDialog):
 
         self.setModal(False)
         self.connected = False
+        self.display_name = None
         self.pvname = None
 
         # Widgets
+        self.display_name_lbl = QtGui.QLabel("Display Name:")
+        self.display_name_txt = QtGui.QLineEdit()
+        self.display_name_txt.setPlaceholderText("Delta")
         self.pvname_lbl = QtGui.QLabel("PV Name:")
         self.pvname_txt = QtGui.QLineEdit()
-        self.pvname_txt.setPlaceholderText("XXX:XX:XXX")
+        self.pvname_txt.setPlaceholderText("XXX:XX.XXX")
         self.connected_lbl = QtGui.QLabel()
         self.dialog_btns = QtGui.QDialogButtonBox.Cancel | QtGui.QDialogButtonBox.Ok
         self.dialog_btn_box = QtGui.QDialogButtonBox(self.dialog_btns)
@@ -74,12 +81,14 @@ class AddParameterDialog(QtGui.QDialog):
         # Layout
         self.layout = QtGui.QGridLayout()
         self.setLayout(self.layout)
-        self.layout.addWidget(self.pvname_lbl, 0, 0)
-        self.layout.addWidget(self.pvname_txt, 0, 1)
-        self.layout.addWidget(self.connected_lbl, 0, 2)
-        self.layout.addWidget(self.dialog_btn_box, 1, 1, 1, 2)
+        self.layout.addWidget(self.display_name_lbl, 0, 0)
+        self.layout.addWidget(self.display_name_txt, 0, 1)
+        self.layout.addWidget(self.pvname_lbl, 1, 0)
+        self.layout.addWidget(self.pvname_txt, 1, 1)
+        self.layout.addWidget(self.connected_lbl, 2, 0)
+        self.layout.addWidget(self.dialog_btn_box, 2, 1)
+        self.layout.setColumnStretch(0, 1)
         self.layout.setColumnStretch(1, 1)
-        self.layout.setColumnStretch(2, 1)
 
         # Signals
         self.pvname_txt.editingFinished.connect(self.validatePV)
@@ -101,8 +110,8 @@ class AddParameterDialog(QtGui.QDialog):
         # Checks if PV is valid
         if pv.connect():
             self.connected = True
+            self.display_name = self.display_name_txt.text()
             self.pvname = pvname
-            self.pvtype = pv.type
             self.connected_lbl.setText("Connected")
             self.connected_lbl.setStyleSheet("color: green")
             self.dialog_btn_box.button(QtGui.QDialogButtonBox.Ok).setEnabled(True)
@@ -119,13 +128,25 @@ class Parameter(SimpleParameter):
     Parameter object for primitive types. Takes information from given PV.
     """
 
-    def __init__(self, pvname : str) -> None:
+    def __init__(self, display_name : str, pvname : str) -> None:
+        self.display_name = display_name
         self.pv = epics.PV(pvname)
+        self.pvname = pvname
+        
+        value = self.pv.value
+        if type(value) == float:
+            value_type = "float"
+        elif type(value) == int:
+            value_type = "int"
+        elif type(value) == str:
+            value_type = "str"
+        else:
+            value_type = None
 
         super(Parameter, self).__init__(
-            name=pvname, 
-            type=self.pv.type,
-            value=self.pv.value,
+            name=display_name,
+            value=value,
+            type=value_type,
             suffix=self.pv.units,
             readonly=(not self.pv.write_access)
         )
@@ -134,7 +155,7 @@ class Parameter(SimpleParameter):
         
     # ------------------------------------------------------------------------------
 
-    def updateValue(self, value=None):
+    def updateValue(self, pvname=None, value=None, **kwargs):
         """
         Updates value as seen in the GUI
         """
