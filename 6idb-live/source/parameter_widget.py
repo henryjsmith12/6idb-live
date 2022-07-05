@@ -44,6 +44,8 @@ class ParameterWidget(QtGui.QWidget):
 
             # Adds parameter to widget
             self.parameter_tree.addParameters(parameter)
+
+            #parameter.sigStateChanged.connect()
             
 # ==================================================================================
 
