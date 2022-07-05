@@ -1,5 +1,6 @@
 import epics
-from pyqtgraph import QtGui
+import numpy as np
+from pyqtgraph import QtGui, QtCore
 from pyqtgraph.parametertree import ParameterTree
 from pyqtgraph.parametertree.parameterTypes import SimpleParameter
 
@@ -46,6 +47,9 @@ class ParameterWidget(QtGui.QWidget):
     # ------------------------------------------------------------------------------
 
     def add_parameter(self):
+        """
+        Creates a Parameter object from user provided information
+        """
         
         display_name = self.parameter_name_txt.text()
         pvname = self.parameter_pvname_txt.text()
@@ -53,19 +57,26 @@ class ParameterWidget(QtGui.QWidget):
         try:
             pv = epics.PV(pvname)
             if pv.connect():
-                parameter = PrimitiveParameter(
-                    display_name=display_name, 
-                    pvname=pvname
-                )
-
+                if type(pv.value) in [int, float]:
+                    parameter = PrimitiveParameter(
+                        display_name=display_name, 
+                        pvname=pvname
+                    )
+                elif type(pv.value) == np.ndarray:
+                    parameter = ImageParameter(
+                        display_name=display_name, 
+                        pvname=pvname
+                    )
+                else:
+                    return
+                
                 # Adds parameter to widget
                 self.parameter_tree.addParameters(parameter)
 
+                # Resets text to add another parameter
                 self.parameter_name_txt.setText("")
                 self.parameter_pvname_txt.setText("")
                 self.parameter_connected_lbl.setText("")
-
-                self.parameter_name_txt.setDefault(True)
             else:
                 self.parameter_connected_lbl.setText("Not Connected")
                 self.parameter_connected_lbl.setStyleSheet("color: red")
@@ -111,9 +122,22 @@ class PrimitiveParameter(SimpleParameter):
 
         self.setValue(value)
 
+    # ------------------------------------------------------------------------------
+
+    def mouseMoveEvent(self, e):
+
+        if e.buttons() == QtCore.Qt.LeftButton:
+            drag = QtGui.QDrag(self)
+            mime = QtCore.QMimeData()
+            drag.setMimeData(mime)
+            drag.exec_(QtCore.Qt.MoveAction)
+
 # ==================================================================================
 
 class ImageParameter(SimpleParameter):
+    """
+    Parameter object for a NumPy array.
+    """
     
     def __init__(self, display_name : str, pvname : str) -> None:
         self.display_name = display_name
