@@ -103,9 +103,13 @@ class Parameter(QtGui.QTreeWidgetItem):
         self.pv = epics.PV(pvname)
         self.pvtype = type(self.pv.value)
         self.pvunits = self.pv.units
+        self.value = self.pv.value
         self.values = [self.pv.value]
         self.plot_widget = None
 
+        self.start_time = pg.ptime.time()
+        self.times = [0]
+        
         self.setText(0, str(self.name))
         self.setText(1, str(self.pv.value))
         self.setText(2, str(self.pv.units))
@@ -119,10 +123,9 @@ class Parameter(QtGui.QTreeWidgetItem):
         Updates value as seen in the GUI
         """
         
-        self.values.append(value)
-        self.setText(1, str(self.pv.value))
-        if self.plot_widget is not None:
-            self.plot_widget.update()
+        self.value = value
+        self.setText(1, str(self.value))
+
         self.parent.parameter_tree.viewport().update()
 
 # ==================================================================================
