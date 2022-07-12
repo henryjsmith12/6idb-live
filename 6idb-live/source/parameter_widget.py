@@ -50,20 +50,21 @@ class ParameterWidget(QtGui.QWidget):
 
     # ------------------------------------------------------------------------------
 
-    def addParameter(self):
+    def addParameter(self, name=None, pvname=None):
         """
         Creates a Parameter object from user provided information
         """
-        
-        name = self.parameter_name_txt.text()
-        pvname = self.parameter_pvname_txt.text()
+        if name is None or pvname is None:
+            name = self.parameter_name_txt.text()
+            pvname = self.parameter_pvname_txt.text()
 
         pv = epics.PV(pvname)
         if pv.connect():
             if type(pv.value) in [int, float]:
                 parameter = Parameter(
                     name=name, 
-                    pvname=pvname
+                    pvname=pvname,
+                    parent=self
                 )
             else:
                 return
@@ -85,24 +86,29 @@ class ParameterWidget(QtGui.QWidget):
 
         from source.plot_widget import ImageWidget, LinePlotWidget 
 
-        if parameter.pvtype in [int, float]:
-            self.parent.plot_dock.addWidget(LinePlotWidget)
+        if parameter.pvtype in [int, float] and parameter.plot_widget == None:
+            self.parent.plot_dock.addWidget(LinePlotWidget(parameter))
             
 # ==================================================================================
 
 class Parameter(QtGui.QTreeWidgetItem):
-    
-    def __init__(self, name : str, pvname : str) -> None:
+
+    def __init__(self, name : str, pvname : str, parent) -> None:
         super(Parameter, self).__init__()
+
+        self.parent = parent
 
         self.name = name
         self.pvname = pvname
         self.pv = epics.PV(pvname)
         self.pvtype = type(self.pv.value)
+        self.pvunits = self.pv.units
+        self.values = [self.pv.value]
+        self.plot_widget = None
 
-        self.setData(0, 0, self.name)
-        self.setData(1, 0, self.pv.value)
-        self.setData(2, 0, self.pv.units)
+        self.setText(0, str(self.name))
+        self.setText(1, str(self.pv.value))
+        self.setText(2, str(self.pv.units))
 
         epics.camonitor(pvname, callback=self.updateValue)
 
@@ -112,12 +118,12 @@ class Parameter(QtGui.QTreeWidgetItem):
         """
         Updates value as seen in the GUI
         """
-
-        self.setData(1, 0, value)
-
-    # ------------------------------------------------------------------------------
-
-    def viewDetails(self):
-        print("HERE")
+        
+        self.values.append(value)
+        self.setText(1, str(self.pv.value))
+        if self.plot_widget is not None:
+            self.plot_widget.update()
+        self.parent.parameter_tree.viewport().update()
 
 # ==================================================================================
+
