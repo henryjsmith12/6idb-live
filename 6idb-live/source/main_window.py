@@ -20,6 +20,10 @@ class MainWindow(QtGui.QWidget):
         # Widgets
         self.parameter_widget = ParameterWidget(parent=self)
 
+        # Test Parameters
+        self.parameter_widget.addParameter("Delta", "6idb1:m18.RBV")
+        self.parameter_widget.addParameter("Eta", "6idb1:m17.RBV")
+
         # Docks
         self.dock_area = DockArea(parent=self)
         self.parameter_dock = Dock(
