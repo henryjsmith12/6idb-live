@@ -1,8 +1,7 @@
 import epics
 import numpy as np
-from pyqtgraph import QtGui, QtCore
-from pyqtgraph.parametertree import ParameterTree
-from pyqtgraph.parametertree.parameterTypes import SimpleParameter
+import pyqtgraph as pg
+from pyqtgraph import QtGui, QtCore 
 
 # ==================================================================================
 
@@ -11,8 +10,10 @@ class ParameterWidget(QtGui.QWidget):
     Houses parameters and allows users to add new parameters.
     """
 
-    def __init__(self, parent=None) -> None:
+    def __init__(self, parent) -> None:
         super(ParameterWidget, self).__init__(parent)
+
+        self.parent = parent
 
         # Widgets
         self.parameter_name_lbl = QtGui.QLabel("Display Name:")
@@ -26,7 +27,9 @@ class ParameterWidget(QtGui.QWidget):
         self.add_parameter_btn.setAutoDefault(True)
         self.add_list_btn = QtGui.QPushButton("Add List")
         self.add_template_btn = QtGui.QPushButton("Add Template")
-        self.parameter_tree = ParameterTree(showHeader=False)
+        self.parameter_tree = QtGui.QTreeWidget()
+        self.parameter_tree.setColumnCount(3)
+        self.parameter_tree.setHeaderLabels(["Name", "Value", "Units"])
 
         # Layout
         self.layout = QtGui.QGridLayout()
@@ -42,116 +45,64 @@ class ParameterWidget(QtGui.QWidget):
         self.layout.addWidget(self.parameter_tree, 4, 0, 1, 6)
 
         # Signals
-        self.add_parameter_btn.clicked.connect(self.add_parameter)
+        self.add_parameter_btn.clicked.connect(self.addParameter)
+        self.parameter_tree.itemDoubleClicked.connect(self.plotParameter)
 
     # ------------------------------------------------------------------------------
 
-    def add_parameter(self):
+    def addParameter(self):
         """
         Creates a Parameter object from user provided information
         """
         
-        display_name = self.parameter_name_txt.text()
+        name = self.parameter_name_txt.text()
         pvname = self.parameter_pvname_txt.text()
 
-        try:
-            pv = epics.PV(pvname)
-            if pv.connect():
-                if type(pv.value) in [int, float]:
-                    parameter = PrimitiveParameter(
-                        display_name=display_name, 
-                        pvname=pvname
-                    )
-                elif type(pv.value) == np.ndarray:
-                    parameter = ImageParameter(
-                        display_name=display_name, 
-                        pvname=pvname
-                    )
-                else:
-                    return
-                
-                # Adds parameter to widget
-                self.parameter_tree.addParameters(parameter)
-
-                # Resets text to add another parameter
-                self.parameter_name_txt.setText("")
-                self.parameter_pvname_txt.setText("")
-                self.parameter_connected_lbl.setText("")
+        pv = epics.PV(pvname)
+        if pv.connect():
+            if type(pv.value) in [int, float]:
+                parameter = Parameter(
+                    name=name, 
+                    pvname=pvname
+                )
             else:
-                self.parameter_connected_lbl.setText("Not Connected")
-                self.parameter_connected_lbl.setStyleSheet("color: red")
-        except:
-            pass
+                return
+            
+            # Adds parameter to widget
+            self.parameter_tree.addTopLevelItem(parameter)
+
+            # Resets text to add another parameter
+            self.parameter_name_txt.setText("")
+            self.parameter_pvname_txt.setText("")
+            self.parameter_connected_lbl.setText("")
+        else:
+            self.parameter_connected_lbl.setText("Not Connected")
+            self.parameter_connected_lbl.setStyleSheet("color: red")
+
+    # ------------------------------------------------------------------------------
+
+    def plotParameter(self, parameter):
+
+        from source.plot_widget import ImageWidget, LinePlotWidget 
+
+        if parameter.pvtype in [int, float]:
+            self.parent.plot_dock.addWidget(LinePlotWidget)
             
 # ==================================================================================
 
-class PrimitiveParameter(SimpleParameter):
-    """
-    Parameter object for primitive types. Takes information from given PV.
-    """
-
-    def __init__(self, display_name : str, pvname : str) -> None:
-        self.display_name = display_name
-        self.pv = epics.PV(pvname)
-        self.pvname = pvname
-        self.pvtype = type(self.pv.value)
-        
-        if self.pvtype == float:
-            str_type = "float"
-        elif self.pvtype == int:
-            str_type = "int"
-        else:
-            str_type = "str"
-
-        super(PrimitiveParameter, self).__init__(
-            name=display_name,
-            value=self.pv.value,
-            type=str_type,
-            suffix=self.pv.units,
-            readonly=(not self.pv.write_access)
-        )
-
-        epics.camonitor(pvname, callback=self.updateValue)
-        
-    # ------------------------------------------------------------------------------
-
-    def updateValue(self, pvname=None, value=None, **kwargs):
-        """
-        Updates value as seen in the GUI
-        """
-
-        self.setValue(value)
-
-    # ------------------------------------------------------------------------------
-
-    def mouseMoveEvent(self, e):
-
-        if e.buttons() == QtCore.Qt.LeftButton:
-            drag = QtGui.QDrag(self)
-            mime = QtCore.QMimeData()
-            drag.setMimeData(mime)
-            drag.exec_(QtCore.Qt.MoveAction)
-
-# ==================================================================================
-
-class ImageParameter(SimpleParameter):
-    """
-    Parameter object for a NumPy array.
-    """
+class Parameter(QtGui.QTreeWidgetItem):
     
-    def __init__(self, display_name : str, pvname : str) -> None:
-        self.display_name = display_name
-        self.pv = epics.PV(pvname)
-        self.pvname = pvname
-        self.image_array = self.pv.value
-        str_value = f"Image: ({self.image_array.shape})"
+    def __init__(self, name : str, pvname : str) -> None:
+        super(Parameter, self).__init__()
 
-        super(ImageParameter, self).__init__(
-            name=display_name,
-            value=str_value,
-            type="str",
-            readonly=True
-        )
+        self.name = name
+        self.pvname = pvname
+        self.pv = epics.PV(pvname)
+        self.pvtype = type(self.pv.value)
+
+        self.setData(0, 0, self.name)
+        self.setData(1, 0, self.pv.value)
+        self.setData(2, 0, self.pv.units)
 
         epics.camonitor(pvname, callback=self.updateValue)
 
@@ -162,11 +113,11 @@ class ImageParameter(SimpleParameter):
         Updates value as seen in the GUI
         """
 
-        self.image_array = value
+        self.setData(1, 0, value)
+
+    # ------------------------------------------------------------------------------
+
+    def viewDetails(self):
+        print("HERE")
 
 # ==================================================================================
-        
-        
-        
-
-        
