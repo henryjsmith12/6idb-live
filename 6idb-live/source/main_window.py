@@ -18,7 +18,7 @@ class MainWindow(QtGui.QWidget):
         self.setWindowTitle("6-ID-B Live")
 
         # Widgets
-        self.parameter_widget = ParameterWidget()
+        self.parameter_widget = ParameterWidget(parent=self)
 
         # Docks
         self.dock_area = DockArea(parent=self)
@@ -28,14 +28,14 @@ class MainWindow(QtGui.QWidget):
             widget=self.parameter_widget,
             size=(100,300)
         )
-        self.spotlight_dock = Dock(
-            name="Spotlight",
+        self.plot_dock = Dock(
+            name="Plotting",
             hideTitle=True,
             widget=None,
             size=(200,300)
         )
         self.dock_area.addDock(self.parameter_dock)
-        self.dock_area.addDock(self.spotlight_dock, "left", self.parameter_dock)
+        self.dock_area.addDock(self.plot_dock, "left", self.parameter_dock)
 
         # Layout
         self.layout = QtGui.QVBoxLayout()
